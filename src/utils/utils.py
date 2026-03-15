@@ -13,21 +13,18 @@ import uuid
 from dotenv import load_dotenv
 from firecrawl import FirecrawlApp
 from PyPDF2 import PdfReader
-import chromadb
-from chromadb.config import Settings
+from langchain_chroma import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
 
 load_dotenv()
 
 # ---------------------------------------------------------------------------
-# ChromaDB client (persistent local storage)
+# ChromaDB Client (LangChain + HuggingFace Embeddings)
 # ---------------------------------------------------------------------------
 CHROMA_PERSIST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "chroma_db")
 
-_chroma_client = chromadb.Client(Settings(
-    persist_directory=CHROMA_PERSIST_DIR,
-    is_persistent=True,
-    anonymized_telemetry=False,
-))
+# Automatically downloads and uses the all-MiniLM-L6-v2 model locally
+hf_embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +51,7 @@ def scrape_urls(urls: list[str]) -> list[str]:
 
     for url in urls:
         try:
-            scraped = app.scrape_url(url, params={"formats": ["markdown"]})
+            scraped = app.scrape(url, formats=["markdown"])
             content = scraped.get("markdown", "") if isinstance(scraped, dict) else str(scraped)
             if content:
                 results.append(f"[Source: {url}]\n{content}")
@@ -126,7 +123,7 @@ def read_txt_files(txt_paths: list[str]) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# ChromaDB — Storage
+# ChromaDB — Storage (via LangChain Chroma)
 # ---------------------------------------------------------------------------
 def store_to_chromadb(
     collection_name: str,
@@ -134,7 +131,7 @@ def store_to_chromadb(
     metadatas: list[dict] | None = None,
     ids: list[str] | None = None,
 ) -> str:
-    """Store documents into a ChromaDB collection.
+    """Store documents into a ChromaDB collection using HuggingFace embeddings.
 
     Args:
         collection_name: Name of the ChromaDB collection.
@@ -148,20 +145,28 @@ def store_to_chromadb(
     if not documents:
         return "No documents to store."
 
-    collection = _chroma_client.get_or_create_collection(name=collection_name)
+    try:
+        vector_store = Chroma(
+            collection_name=collection_name,
+            embedding_function=hf_embeddings,
+            persist_directory=CHROMA_PERSIST_DIR
+        )
 
-    if ids is None:
-        ids = [str(uuid.uuid4()) for _ in documents]
-    if metadatas is None:
-        metadatas = [{"index": i} for i in range(len(documents))]
+        if ids is None:
+            ids = [str(uuid.uuid4()) for _ in documents]
+        if metadatas is None:
+            # Langchain chroma requires metadatas to be a list of dicts, and handles None internally
+            # but we explicitly provide an empty dict to ensure uniformity if partially provided
+            metadatas = [{"source": "system"} for _ in documents]
 
-    collection.add(
-        documents=documents,
-        metadatas=metadatas,
-        ids=ids,
-    )
-
-    return f"Successfully stored {len(documents)} documents in collection '{collection_name}'."
+        vector_store.add_texts(
+            texts=documents,
+            metadatas=metadatas,
+            ids=ids
+        )
+        return f"Successfully stored {len(documents)} documents in collection '{collection_name}' via LangChain."
+    except Exception as e:
+        return f"(Error storing to ChromaDB: {e})"
 
 
 def query_chromadb(
@@ -169,7 +174,7 @@ def query_chromadb(
     query: str,
     n_results: int = 5,
 ) -> list[str]:
-    """Query a ChromaDB collection for relevant documents.
+    """Query a Chroma collection using HuggingFace embeddings via LangChain vector store.
 
     Args:
         collection_name: Name of the ChromaDB collection to query.
@@ -180,8 +185,14 @@ def query_chromadb(
         List of matching document strings.
     """
     try:
-        collection = _chroma_client.get_collection(name=collection_name)
-        results = collection.query(query_texts=[query], n_results=n_results)
-        return results.get("documents", [[]])[0]
+        vector_store = Chroma(
+            collection_name=collection_name,
+            embedding_function=hf_embeddings,
+            persist_directory=CHROMA_PERSIST_DIR
+        )
+
+        # similarity_search returns Document objects
+        docs = vector_store.similarity_search(query, k=n_results)
+        return [doc.page_content for doc in docs]
     except Exception as e:
         return [f"(Error querying ChromaDB: {e})"]

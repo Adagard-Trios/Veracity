@@ -9,9 +9,13 @@ firecrawl-py
 PyPDF2
 python-dotenv
 pydantic
+requests
 fastapi
 uvicorn
 watchdog
 langgraph-cli[inmem]
 streamlit
 tavily-python
+langchain-huggingface
+sentence-transformers
+termcolor

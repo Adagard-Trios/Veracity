@@ -1,26 +1,27 @@
 """
-Adjacent Graph — Tool-calling agent graph for adjacent market analysis.
+Adjacent Graph \u2014 3-Stage Pipeline for Adjacent Market Analysis.
 
-Architecture: __start__ → agent → (tool calls loop) → __end__
+Architecture:
+    context_extractor -> data_collector -> compiler -> END
 """
 
 from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolNode, tools_condition
 from src.states.adjacent_state import AdjacentState
-from src.nodes.adjacent_node import agent_node, adjacent_tools
-
+from src.nodes.adjacent_node import context_extractor, data_collector, compiler
 
 # Build the graph
 builder = StateGraph(AdjacentState)
 
 # Add nodes
-builder.add_node("agent", agent_node)
-builder.add_node("tools", ToolNode(adjacent_tools))
+builder.add_node("context_extractor", context_extractor)
+builder.add_node("data_collector", data_collector)
+builder.add_node("compiler", compiler)
 
 # Add edges
-builder.set_entry_point("agent")
-builder.add_conditional_edges("agent", tools_condition)
-builder.add_edge("tools", "agent")
+builder.set_entry_point("context_extractor")
+builder.add_edge("context_extractor", "data_collector")
+builder.add_edge("data_collector", "compiler")
+builder.add_edge("compiler", END)
 
 # Compile
 adjacent_graph = builder.compile()

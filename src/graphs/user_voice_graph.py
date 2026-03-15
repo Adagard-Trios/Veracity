@@ -1,26 +1,30 @@
 """
-User Voice Graph — Tool-calling agent graph for user voice analysis.
+User Voice Graph — Context extraction + Parallel data collection + LLM compilation.
 
-Architecture: __start__ → agent → (tool calls loop) → __end__
+Architecture:
+    __start__ → context_extractor → data_collector (parallel tools) → compiler → __end__
+
+Focuses on positioning and messaging gaps (how to talk about what exists).
 """
 
 from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolNode, tools_condition
 from src.states.user_voice_state import UserVoiceState
-from src.nodes.user_voice_node import agent_node, user_voice_tools
+from src.nodes.user_voice_node import context_extractor, data_collector, compiler
 
 
 # Build the graph
 builder = StateGraph(UserVoiceState)
 
 # Add nodes
-builder.add_node("agent", agent_node)
-builder.add_node("tools", ToolNode(user_voice_tools))
+builder.add_node("context_extractor", context_extractor)
+builder.add_node("data_collector", data_collector)
+builder.add_node("compiler", compiler)
 
-# Add edges
-builder.set_entry_point("agent")
-builder.add_conditional_edges("agent", tools_condition)
-builder.add_edge("tools", "agent")
+# Add edges: __start__ → context_extractor → data_collector → compiler → __end__
+builder.set_entry_point("context_extractor")
+builder.add_edge("context_extractor", "data_collector")
+builder.add_edge("data_collector", "compiler")
+builder.add_edge("compiler", END)
 
 # Compile
 user_voice_graph = builder.compile()
