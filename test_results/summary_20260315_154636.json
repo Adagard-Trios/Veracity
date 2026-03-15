@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-03-15T15:46:36.952009",
+  "total_tests": 6,
+  "passed": 0,
+  "results": [
+    {
+      "graph": "Adjacent Market Graph",
+      "score": 5,
+      "verdict": "FAIL",
+      "filepath": "C:\\Users\\LENOVO\\Desktop\\Veracity-Ultimate\\test_results\\adjacent_market_graph_20260315_154120.json"
+    },
+    {
+      "graph": "Competitor Analysis Graph",
+      "score": 2,
+      "verdict": "FAIL",
+      "filepath": "C:\\Users\\LENOVO\\Desktop\\Veracity-Ultimate\\test_results\\competitor_analysis_graph_20260315_154205.json"
+    },
+    {
+      "graph": "Market Trend Graph",
+      "score": 5,
+      "verdict": "FAIL",
+      "filepath": "C:\\Users\\LENOVO\\Desktop\\Veracity-Ultimate\\test_results\\market_trend_graph_20260315_154325.json"
+    },
+    {
+      "graph": "Pricing Analysis Graph",
+      "score": 5,
+      "verdict": "FAIL",
+      "filepath": "C:\\Users\\LENOVO\\Desktop\\Veracity-Ultimate\\test_results\\pricing_analysis_graph_20260315_154442.json"
+    },
+    {
+      "graph": "User Voice (VOC) Graph",
+      "score": 5,
+      "verdict": "FAIL",
+      "filepath": "C:\\Users\\LENOVO\\Desktop\\Veracity-Ultimate\\test_results\\user_voice_(voc)_graph_20260315_154548.json"
+    },
+    {
+      "graph": "Win/Loss Intelligence Graph",
+      "score": 0,
+      "verdict": "ERROR",
+      "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\LENOVO\\\\Desktop\\\\Veracity-Ultimate\\\\test_results\\\\win\\\\loss_intelligence_graph_20260315_154636.json'"
+    }
+  ]
+}

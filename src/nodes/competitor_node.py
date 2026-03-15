@@ -238,19 +238,38 @@ Rules:
 - missing_features = genuine market gaps, NOT data collection gaps."""
 
 
+NARRATIVE_SYSTEM = """You are a senior Competitive Intelligence Analyst. You receive structured JSON data
+about competitors and produce a comprehensive, actionable competitive intelligence report.
+
+Your report MUST include:
+1. **Executive Summary** — 3-4 sentences on who dominates and why.
+2. **Competitor Profiles** — For each competitor: positioning, key features, pricing tier, recent launches.
+3. **SWOT vs Our Product** — Specific strengths and weaknesses of competitors relative to us.
+4. **Feature Gap Analysis** — What standard features everyone has, what differentiates players, and genuine market gaps.
+5. **Positioning Map** — How competitors position themselves (premium/budget, enterprise/SMB, niche/broad).
+6. **Strategic Recommendations** — 3 specific actions based on competitive gaps (NO new product feature suggestions).
+
+Rules:
+- Be specific — name features, pricing numbers, actual product names.
+- Do NOT suggest building new product features — focus on positioning, messaging, and GTM strategy.
+- Use markdown formatting with headers and tables where appropriate.
+- Minimum 400 words."""
+
+
 def compiler_node(state: dict) -> dict:
     """
     Final aggregation node. Runs after all parallel fetch branches complete.
     Reads state["competitor_results"] (list merged by operator.add reducer),
-    calls the LLM for structured extraction, and validates against CompetitivePayload.
+    calls the LLM for structured extraction AND a full narrative report.
     """
     competitor_results = state.get("competitor_results", [])
 
     if not competitor_results:
+        empty_msg = "No competitor data was fetched — all tool calls failed or returned empty."
         empty = CompetitivePayload(
             competitors=[],
             feature_columns=[],
-            category_summary="No competitor data was fetched — all tool calls failed or returned empty.",
+            category_summary=empty_msg,
             standard_features=[],
             differentiator_features=[],
             missing_features=[],
@@ -258,21 +277,21 @@ def compiler_node(state: dict) -> dict:
         )
         return {
             "structured_output": empty.model_dump(),
-            "analysis_result": empty.category_summary,
+            "analysis_result": empty_msg,
         }
 
     research_dump = json.dumps(competitor_results, indent=2)[:6000]
-
     llm = GroqLLM().get_llm(temperature=0)
-    messages = [
-        SystemMessage(content=COMPILER_SYSTEM),
-        HumanMessage(content=f"Per-competitor research data:\n{research_dump}"),
-    ]
 
+    # ---- Step 1: Structured JSON extraction ----
     try:
-        response = llm.invoke(messages)
+        struct_messages = [
+            SystemMessage(content=COMPILER_SYSTEM),
+            HumanMessage(content=f"Per-competitor research data:\n{research_dump}"),
+        ]
+        struct_response = llm.invoke(struct_messages)
         content = (
-            response.content
+            struct_response.content
             .strip()
             .removeprefix("```json")
             .removeprefix("```")
@@ -283,7 +302,6 @@ def compiler_node(state: dict) -> dict:
         payload = CompetitivePayload(**payload_dict)
 
     except Exception as e:
-        # Graceful degradation — partial payload beats a crash
         payload = CompetitivePayload(
             competitors=[],
             feature_columns=[],
@@ -294,7 +312,27 @@ def compiler_node(state: dict) -> dict:
             overall_confidence=0.1,
         )
 
+    # ---- Step 2: Full narrative report from structured data ----
+    try:
+        narrative_messages = [
+            SystemMessage(content=NARRATIVE_SYSTEM),
+            HumanMessage(
+                content=(
+                    f"Structured competitive intelligence data:\n"
+                    f"{json.dumps(payload.model_dump(), indent=2)[:5000]}\n\n"
+                    f"Write the full competitive intelligence report now."
+                )
+            ),
+        ]
+        narrative_response = llm.invoke(narrative_messages)
+        analysis_result = narrative_response.content.strip()
+    except Exception as e:
+        analysis_result = (
+            f"Narrative report generation failed: {e}\n\n"
+            f"Structured summary: {payload.category_summary}"
+        )
+
     return {
         "structured_output": payload.model_dump(),
-        "analysis_result": payload.category_summary,
+        "analysis_result": analysis_result,
     }
