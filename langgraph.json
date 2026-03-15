@@ -7,7 +7,7 @@
         "market_trend_graph": "./src/graphs/market_trend_graph.py:market_trend_graph",
         "pricing_graph": "./src/graphs/pricing_graph.py:pricing_graph",
         "user_voice_graph": "./src/graphs/user_voice_graph.py:user_voice_graph",
-        "win_loss_graph": "./src/graphs/win-loss_graph.py:win_loss_graph",
+        "win_loss_graph": "./src/graphs/win_loss_graph.py:win_loss_graph",
         "marketing_trend_graph": "./src/graphs/marketing_trend_graph.py:marketing_trend_graph"
     },
     "env": "./.env"
