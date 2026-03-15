@@ -1,97 +1,300 @@
 """
-Competitor Node — Tool-calling agent for competitor analysis.
+Competitor Node — Three-stage parallel pipeline for live competitive intelligence.
 
-Uses LLM with domain-specific tools to identify the competitive landscape,
-SWOT analysis, and competitive positioning based on fetched content.
+Architecture:
+    planner_node          — LLM identifies competitors → emits Send objects
+    competitor_fetch_node — one parallel branch per competitor; all 3 Firecrawl
+                            calls run concurrently via ThreadPoolExecutor
+    compiler_node         — aggregates all parallel results → CompetitivePayload
+
+The old single agent_node (ReAct tool-calling loop) is fully replaced.
 """
 
-from langchain_core.messages import SystemMessage
-from langchain_core.tools import tool
+import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from langchain_core.messages import SystemMessage, HumanMessage
+from langgraph.types import Send
 from src.llms.groqllm import GroqLLM
-from src.states.competitor_state import CompetitorState
+from src.nodes.competitor_schemas import (
+    CompetitivePayload,
+    CompetitorTask,
+)
+from src.nodes.competitor_tools import (
+    fetch_competitor_website,
+    fetch_competitor_changelog,
+    fetch_producthunt_launches,
+)
 
 
 # ---------------------------------------------------------------------------
-# Domain-specific tools
+# Stage 1 — Planner node
 # ---------------------------------------------------------------------------
-@tool
-def search_competitors(query: str, content: str) -> str:
-    """Search through the fetched content to find information about competitors.
 
-    Args:
-        query: What to search for (e.g., 'main competitors in cloud storage').
-        content: The fetched content to analyze.
+PLANNER_SYSTEM = """You are a Competitive Intelligence Planner. \
+Your sole job is to read the provided pre-fetched content and return a \
+JSON array of competitor objects to research.
 
-    Returns:
-        Relevant excerpts and analysis about competitors.
+Output ONLY valid JSON — no preamble, no markdown fences. Schema:
+
+[
+  {
+    "name": "Competitor display name",
+    "website_url": "https://...",
+    "changelog_url": "https://.../changelog"
+  }
+]
+
+Rules:
+- Identify 3 to 5 direct competitors from the content. If you cannot find
+  clear URLs, make a best-effort guess (e.g. append /changelog to the homepage).
+- changelog_url is required — guess /changelog or /blog if not explicit.
+- Return ONLY the JSON array. Nothing else."""
+
+
+def planner_node(state: dict) -> dict:
     """
-    llm = GroqLLM().get_llm(temperature=0.1)
-    response = llm.invoke(
-        f"Analyze the following content and extract information about competitors "
-        f"for the query: '{query}'.\n\nContent:\n{content[:8000]}\n\n"
-        f"List all competitors mentioned, their market position, and key differentiators."
-    )
-    return response.content
-
-
-@tool
-def analyze_competitor_strengths(category: str, content: str) -> str:
-    """Perform a SWOT-style analysis of competitors in the given category.
-
-    Args:
-        category: The business/product category being analyzed.
-        content: The fetched content to analyze for competitive intelligence.
-
-    Returns:
-        SWOT analysis and competitive positioning assessment.
+    Stage 1 — LLM identifies competitors from pre-fetched context.
+    Stores the task list in state["competitor_tasks"].
+    The route_to_fetchers conditional edge then fans out Send objects.
     """
-    llm = GroqLLM().get_llm(temperature=0.2)
-    response = llm.invoke(
-        f"Given the category '{category}', analyze the following content and perform "
-        f"a competitive analysis.\n\nContent:\n{content[:8000]}\n\n"
-        f"Provide:\n1. SWOT analysis of key competitors\n"
-        f"2. Market share estimates\n3. Competitive advantages and weaknesses\n"
-        f"4. Strategic recommendations for competitive positioning"
+    category = state.get("category", "AI software")
+    content_pieces = state.get("fetched_content", [])
+    context = "\n\n---\n\n".join(content_pieces[:5])[:4000] or "No pre-fetched content."
+
+    llm = GroqLLM().get_llm(temperature=0)
+    messages = [
+        SystemMessage(content=PLANNER_SYSTEM),
+        HumanMessage(
+            content=(
+                f"Product category: {category}\n\n"
+                f"Pre-fetched content:\n{context}\n\n"
+                "Return the JSON competitor array now."
+            )
+        ),
+    ]
+
+    response = llm.invoke(messages)
+    raw = (
+        response.content
+        .strip()
+        .removeprefix("```json")
+        .removeprefix("```")
+        .removesuffix("```")
+        .strip()
     )
-    return response.content
+
+    try:
+        competitors_raw = json.loads(raw)
+        if not isinstance(competitors_raw, list):
+            competitors_raw = []
+    except json.JSONDecodeError:
+        competitors_raw = []
+
+    # Build validated CompetitorTask dicts
+    tasks = []
+    for item in competitors_raw:
+        task = CompetitorTask(
+            name=item.get("name", "Unknown"),
+            website_url=item.get("website_url", ""),
+            changelog_url=item.get("changelog_url", ""),
+            category=category,
+        )
+        tasks.append(task.model_dump())
+
+    # Node must return a dict — Send objects are emitted by the edge function
+    return {"competitor_tasks": tasks}
 
 
-# All tools for this agent
-competitor_tools = [search_competitors, analyze_competitor_strengths]
+def route_to_fetchers(state: dict) -> list[Send]:
+    """
+    Conditional edge function — reads competitor_tasks from state and
+    returns one Send per competitor to trigger parallel fetch branches.
+    If no tasks found, routes directly to compiler for graceful termination.
+    """
+    tasks = state.get("competitor_tasks", [])
+    if not tasks:
+        return [Send("compiler", {})]
+    return [Send("fetch_competitor", task) for task in tasks]
 
 
 # ---------------------------------------------------------------------------
-# Agent node
+# Stage 2 — Per-competitor parallel fetch node
 # ---------------------------------------------------------------------------
-def agent_node(state: CompetitorState) -> dict:
-    """Competitor analysis agent node."""
-    llm = GroqLLM().get_llm(temperature=0.1)
-    llm_with_tools = llm.bind_tools(competitor_tools)
 
-    system_prompt = SystemMessage(content=(
-        "You are a Competitor Analysis Agent specializing in competitive intelligence. "
-        "Your task is to analyze the provided content and build a comprehensive competitive "
-        "landscape for the given category.\n\n"
-        f"Category: {state.get('category', 'Unknown')}\n\n"
-        "You have access to the following fetched content from various sources:\n"
-        + "\n---\n".join(state.get("fetched_content", [])[:5])
-        + "\n\nUse your tools to thoroughly analyze this content. Identify:\n"
-        "1. Direct and indirect competitors\n"
-        "2. Market positioning of each competitor\n"
-        "3. Strengths, weaknesses, opportunities, and threats (SWOT)\n"
-        "4. Competitive gaps and strategic recommendations\n\n"
-        "Provide a comprehensive, actionable competitive analysis."
-    ))
+def competitor_fetch_node(task: dict) -> dict:
+    """
+    Receives one CompetitorTask dict. Calls all 3 Firecrawl tools concurrently
+    with ThreadPoolExecutor(max_workers=3) and returns the merged result.
 
-    messages = state.get("messages", [])
-    if not messages or not any(
-        getattr(m, "type", None) == "system" for m in messages
-    ):
-        messages = [system_prompt] + list(messages)
+    Returns {"competitor_results": [combined_dict]} where the list is merged
+    across all parallel branches by the operator.add reducer on CompetitorState.
+    """
+    name = task.get("name", "Unknown")
+    website_url = task.get("website_url", "")
+    changelog_url = task.get("changelog_url", "") or (
+        website_url.rstrip("/") + "/changelog" if website_url else ""
+    )
 
-    response = llm_with_tools.invoke(messages)
+    results = {
+        "name": name,
+        "website_url": website_url,
+        "changelog_url": changelog_url,
+        "website_data": None,
+        "changelog_data": None,
+        "producthunt_data": None,
+    }
+
+    # Define the three fetch callables
+    def _fetch_website():
+        if not website_url:
+            return ("website_data", json.dumps({"competitor": name, "error": "No URL", "confidence": 0.0}))
+        raw = fetch_competitor_website.invoke({"competitor_name": name, "website_url": website_url})
+        return ("website_data", raw)
+
+    def _fetch_changelog():
+        if not changelog_url:
+            return ("changelog_data", json.dumps({"competitor": name, "error": "No changelog URL", "confidence": 0.0}))
+        raw = fetch_competitor_changelog.invoke({"competitor_name": name, "changelog_url": changelog_url})
+        return ("changelog_data", raw)
+
+    def _fetch_producthunt():
+        raw = fetch_producthunt_launches.invoke({"competitor_name": name})
+        return ("producthunt_data", raw)
+
+    # Run all three concurrently — one Firecrawl credit each
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [
+            executor.submit(_fetch_website),
+            executor.submit(_fetch_changelog),
+            executor.submit(_fetch_producthunt),
+        ]
+        for future in as_completed(futures):
+            try:
+                key, value = future.result()
+                results[key] = value
+            except Exception as e:
+                # Non-fatal — log and continue; compiler handles missing data gracefully
+                print(f"[competitor_fetch_node] Tool error for {name}: {e}")
+
+    # Deserialize JSON strings to dicts for the compiler
+    for field in ("website_data", "changelog_data", "producthunt_data"):
+        raw_val = results.get(field)
+        if isinstance(raw_val, str):
+            try:
+                results[field] = json.loads(raw_val)
+            except json.JSONDecodeError:
+                results[field] = {"raw": raw_val}
+
+    return {"competitor_results": [results]}
+
+
+# ---------------------------------------------------------------------------
+# Stage 3 — Compiler node
+# ---------------------------------------------------------------------------
+
+COMPILER_SYSTEM = """You are a data extraction assistant for competitive intelligence.
+
+Based on the per-competitor research data below, produce a single structured
+JSON object. Return ONLY valid JSON — no preamble, no markdown fences.
+
+Schema:
+{
+  "competitors": [
+    {
+      "name": "string",
+      "website": "string",
+      "tagline": "string",
+      "features": {
+        "feature_name": {
+          "present": true,
+          "confidence": 0.85
+        }
+      },
+      "last_updated": "ISO date string",
+      "recent_launches": ["string"],
+      "pricing_tier": "string",
+      "sources": [
+        {
+          "url": "string",
+          "title": "string",
+          "retrieved_at": "ISO date string",
+          "confidence": 0.85
+        }
+      ]
+    }
+  ],
+  "feature_columns": ["ordered list of all feature names across competitors"],
+  "category_summary": "2-sentence synthesis of the competitive landscape",
+  "standard_features": ["features present in 3+ competitors"],
+  "differentiator_features": ["features present in 1-2 competitors only"],
+  "missing_features": ["important capabilities no competitor has yet"],
+  "overall_confidence": 0.75
+}
+
+Rules:
+- Include every competitor that returned at least one successful data fetch.
+- Use consistent snake_case keys for all feature names across competitors.
+- overall_confidence = average of all per-tool confidence scores received.
+- missing_features = genuine market gaps, NOT data collection gaps."""
+
+
+def compiler_node(state: dict) -> dict:
+    """
+    Final aggregation node. Runs after all parallel fetch branches complete.
+    Reads state["competitor_results"] (list merged by operator.add reducer),
+    calls the LLM for structured extraction, and validates against CompetitivePayload.
+    """
+    competitor_results = state.get("competitor_results", [])
+
+    if not competitor_results:
+        empty = CompetitivePayload(
+            competitors=[],
+            feature_columns=[],
+            category_summary="No competitor data was fetched — all tool calls failed or returned empty.",
+            standard_features=[],
+            differentiator_features=[],
+            missing_features=[],
+            overall_confidence=0.1,
+        )
+        return {
+            "structured_output": empty.model_dump(),
+            "analysis_result": empty.category_summary,
+        }
+
+    research_dump = json.dumps(competitor_results, indent=2)[:6000]
+
+    llm = GroqLLM().get_llm(temperature=0)
+    messages = [
+        SystemMessage(content=COMPILER_SYSTEM),
+        HumanMessage(content=f"Per-competitor research data:\n{research_dump}"),
+    ]
+
+    try:
+        response = llm.invoke(messages)
+        content = (
+            response.content
+            .strip()
+            .removeprefix("```json")
+            .removeprefix("```")
+            .removesuffix("```")
+            .strip()
+        )
+        payload_dict = json.loads(content)
+        payload = CompetitivePayload(**payload_dict)
+
+    except Exception as e:
+        # Graceful degradation — partial payload beats a crash
+        payload = CompetitivePayload(
+            competitors=[],
+            feature_columns=[],
+            category_summary=f"Structured extraction failed: {str(e)[:120]}",
+            standard_features=[],
+            differentiator_features=[],
+            missing_features=[],
+            overall_confidence=0.1,
+        )
 
     return {
-        "messages": [response],
-        "analysis_result": response.content if not response.tool_calls else state.get("analysis_result", ""),
+        "structured_output": payload.model_dump(),
+        "analysis_result": payload.category_summary,
     }

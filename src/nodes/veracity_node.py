@@ -11,6 +11,7 @@ from datetime import datetime
 from langchain_core.messages import HumanMessage
 from src.states.veracity_state import VeracityState
 from src.utils.utils import scrape_urls, read_pdf_files, read_txt_files, store_to_chromadb
+from src.utils.sse import emit_sse_artifact
 
 
 def information_fetcher(state: VeracityState) -> dict:
@@ -75,6 +76,18 @@ def compiler_and_storage(state: VeracityState) -> dict:
     into a unified compiled report and persists to ChromaDB.
     """
     category = state.get("category", "Unknown")
+
+    # --- Emit SSE for competitor structured output (spec Step 6) ---
+    competitor_output = state.get("competitor_analysis", {})
+    structured = competitor_output.get("structured_output", {})
+    confidence = structured.get("overall_confidence", 0.5) if structured else 0.5
+    if structured:
+        emit_sse_artifact(
+            domain="competitive_landscape",
+            payload=structured,
+            confidence=confidence,
+            sse_queue=state.get("sse_queue"),
+        )
 
     # --- Aggregate results ---
     compiled_report = {

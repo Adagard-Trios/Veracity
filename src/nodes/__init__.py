@@ -1,6 +1,6 @@
 from src.nodes.veracity_node import information_fetcher, compiler_and_storage
 from src.nodes.adjacent_node import context_extractor as adjacent_context_extractor, data_collector as adjacent_data_collector, compiler as adjacent_compiler
-from src.nodes.competitor_node import agent_node as competitor_agent_node
+from src.nodes.competitor_node import planner_node as competitor_agent_node
 from src.nodes.market_trend_node import agent_node as market_trend_agent_node
 from src.nodes.pricing_node import context_extractor as pricing_context_extractor, data_collector as pricing_data_collector, compiler as pricing_compiler
 from src.nodes.user_voice_node import context_extractor as user_voice_context_extractor, data_collector as user_voice_data_collector, compiler as user_voice_compiler
