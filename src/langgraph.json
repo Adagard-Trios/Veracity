@@ -1,8 +1,0 @@
-{
-    "dependencies": ["."],
-    "graphs": {
-        "scope_research": "./src/graphs/scopeGraph.py:scope_research",
-        "researcher_agent": "./src/graphs/researchAgentGraph.py:researcher_agent"
-    },
-    "env": "./env"
-}

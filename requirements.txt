@@ -3,6 +3,12 @@ langgraph
 langchain_community
 langchain_core
 langchain_groq
+langchain-chroma
+chromadb
+firecrawl-py
+PyPDF2
+python-dotenv
+pydantic
 fastapi
 uvicorn
 watchdog

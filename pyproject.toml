@@ -1,7 +1,7 @@
 [project]
 name = "veracity-ultimate"
 version = "0.1.0"
-description = "Add your description here"
+description = "Growth Intelligence Multi-Agent Decision System"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -10,8 +10,14 @@ dependencies = [
     "langchain-community>=0.4.1",
     "langchain-core>=1.2.19",
     "langchain-groq>=1.1.2",
+    "langchain-chroma>=0.2.0",
+    "chromadb>=0.6.0",
     "langgraph>=1.1.2",
     "langgraph-cli[inmem]>=0.4.17",
+    "firecrawl-py>=1.0.0",
+    "pypdf2>=3.0.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
     "streamlit>=1.55.0",
     "tavily-python>=0.7.23",
     "uvicorn>=0.41.0",

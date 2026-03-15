@@ -1,0 +1,13 @@
+{
+    "dependencies": ["."],
+    "graphs": {
+        "veracity_graph": "./src/graphs/veracity_graph.py:veracity_graph",
+        "adjacent_graph": "./src/graphs/adjacent_graph.py:adjacent_graph",
+        "competitor_graph": "./src/graphs/competitor_graph.py:competitor_graph",
+        "market_trend_graph": "./src/graphs/market_trend_graph.py:market_trend_graph",
+        "pricing_graph": "./src/graphs/pricing_graph.py:pricing_graph",
+        "user_voice_graph": "./src/graphs/user_voice_graph.py:user_voice_graph",
+        "win_loss_graph": "./src/graphs/win-loss_graph.py:win_loss_graph"
+    },
+    "env": "./.env"
+}
