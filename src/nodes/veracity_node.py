@@ -9,7 +9,7 @@ Contains:
 from datetime import datetime
 from langchain_core.messages import HumanMessage
 from src.states.veracity_state import VeracityState
-from src.utils.utils import scrape_urls, read_pdf_files, read_txt_files, store_to_chromadb
+from src.utils.utils import scrape_urls, read_pdf_files, read_txt_files
 from src.utils.sse import emit_sse_artifact
 from src.utils.persistence_utils import persist_graph_run
 
