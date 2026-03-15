@@ -29,7 +29,7 @@ export function WinLossCard() {
             ))}
           </div>
 
-          <div className="h-[200px] w-full">
+          <div className="h-50 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={artifact.reasons} margin={{ top: 5, right: 0, bottom: 5, left: -20 }} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="hsl(var(--border))" />

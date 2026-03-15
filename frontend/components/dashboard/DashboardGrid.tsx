@@ -21,7 +21,7 @@ const ResponsiveGridLayout: any = dynamic(
   { ssr: false }
 );
 
-const layout = [
+const layoutLg = [
   { i: 'market', x: 0, y: 0, w: 6, h: 2 },
   { i: 'competitive', x: 6, y: 0, w: 6, h: 2 },
   { i: 'winloss', x: 0, y: 2, w: 4, h: 2 },
@@ -30,7 +30,25 @@ const layout = [
   { i: 'adjacent', x: 0, y: 4, w: 12, h: 2 },
 ];
 
-const LAYOUTS = { lg: layout };
+const layoutMd = [
+  { i: 'market', x: 0, y: 0, w: 10, h: 2 },
+  { i: 'competitive', x: 0, y: 2, w: 10, h: 2 },
+  { i: 'winloss', x: 0, y: 4, w: 10, h: 2 },
+  { i: 'pricing', x: 0, y: 6, w: 10, h: 2 },
+  { i: 'positioning', x: 0, y: 8, w: 10, h: 2 },
+  { i: 'adjacent', x: 0, y: 10, w: 10, h: 2 },
+];
+
+const layoutSm = [
+  { i: 'market', x: 0, y: 0, w: 6, h: 2 },
+  { i: 'competitive', x: 0, y: 2, w: 6, h: 2 },
+  { i: 'winloss', x: 0, y: 4, w: 6, h: 2 },
+  { i: 'pricing', x: 0, y: 6, w: 6, h: 2 },
+  { i: 'positioning', x: 0, y: 8, w: 6, h: 2 },
+  { i: 'adjacent', x: 0, y: 10, w: 6, h: 2 },
+];
+
+const LAYOUTS = { lg: layoutLg, md: layoutMd, sm: layoutSm };
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
 const COLS = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
 const MARGIN = [16, 16] as const;
