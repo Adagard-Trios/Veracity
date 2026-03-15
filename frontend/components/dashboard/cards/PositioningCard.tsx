@@ -20,7 +20,7 @@ export function PositioningCard() {
     <ArtifactCard title="Positioning Scorecard" agentId={6} domain="positioning">
       {artifact ? (
         <div className="flex w-full h-full pt-4 gap-4">
-          <div className="flex-1 h-[250px]">
+          <div className="flex-1 h-62.5">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart cx="50%" cy="50%" outerRadius="70%" data={artifact.gaps}>
                 <PolarGrid stroke="hsl(var(--border))" />
@@ -35,7 +35,7 @@ export function PositioningCard() {
               </RadarChart>
             </ResponsiveContainer>
           </div>
-          <div className="w-[180px] flex flex-col gap-2 overflow-y-auto">
+          <div className="w-45 flex flex-col gap-2 overflow-y-auto">
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Top Suggestions</h4>
             {artifact.messagingSuggestions.map((msg, idx) => (
               <div key={idx} className="bg-muted text-xs p-2 rounded-md border border-border/50 shadow-sm">

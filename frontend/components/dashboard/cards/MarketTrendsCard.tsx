@@ -42,7 +42,7 @@ export function MarketTrendsCard() {
     <ArtifactCard title="Market & Trends" agentId={2} domain="market_trends">
       {artifact ? (
         <div className="flex flex-col h-full w-full gap-4 pt-4">
-          <div className="h-[250px] w-full">
+          <div className="h-62.5 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />

@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { Network } from 'lucide-react';
 import { useAppStore } from '@/store';
 import { DashboardGrid } from '@/components/dashboard/DashboardGrid';
 import { AgentControlPanel } from '@/components/dashboard/AgentControlPanel';
@@ -20,6 +21,16 @@ export function RootShell() {
         animate={{ width: isChatOpen ? '66.666%' : '100%' }}
         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       >
+        <header className="flex h-14 items-center gap-2 border-b border-border bg-card px-6 shadow-sm">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <Network className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold leading-none tracking-tight">Veracity Growth Intelligence</h1>
+            <p className="text-xs text-muted-foreground">Multi-Agent Decision System</p>
+          </div>
+        </header>
+
         <AgentStatusBar />
         <div className="flex-1 overflow-auto p-4">
           <AgentControlPanel />

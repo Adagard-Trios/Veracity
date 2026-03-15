@@ -33,7 +33,7 @@ export function AdjacentMarketsCard() {
   return (
     <ArtifactCard title="Adjacent Market Threats" agentId={7} domain="adjacent_markets">
       {artifact ? (
-        <div className="h-[250px] w-full pt-4">
+        <div className="h-62.5 w-full pt-4">
           <ResponsiveTreeMap
             data={treemapData}
             identity="name"

@@ -22,7 +22,7 @@ export function PricingPackagingCard() {
   return (
     <ArtifactCard title="Pricing & Packaging" agentId={5} domain="pricing_packaging">
       {artifact ? (
-        <div className="h-[250px] w-full pt-4">
+        <div className="h-62.5 w-full pt-4">
           <ResponsiveHeatMap
             data={heatmapData}
             margin={{ top: 30, right: 20, bottom: 20, left: 90 }}

@@ -69,7 +69,7 @@ export function CompetitiveLandscapeCard() {
     <ArtifactCard title="Competitive Landscape" agentId={3} domain="competitive_landscape">
       {artifact ? (
         <div className="pt-4 w-full h-full">
-          <ScrollArea className="h-[250px] w-full rounded-md border">
+          <ScrollArea className="h-62.5 w-full rounded-md border">
             <Table>
               <TableHeader className="bg-muted/50 sticky top-0 z-10 hidden md:table-header-group">
                 {table.getHeaderGroups().map((headerGroup) => (
