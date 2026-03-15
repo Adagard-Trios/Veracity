@@ -8,15 +8,17 @@ export function useAgentStream(queryId: string | null) {
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    if (!queryId) return;
-
+    // Determine if we should connect to the stream.
+    // In our new architecture, the stream is global for the background loop.
+    // So we can connect unconditionally when the hook mounts.
+    
     // Close any existing connection
     esRef.current?.close();
 
     store.resetPipeline();
     store.setStreaming(true);
 
-    const es = new EventSource(`/api/stream?queryId=${encodeURIComponent(queryId)}`);
+    const es = new EventSource(`http://127.0.0.1:8000/api/stream`);
     esRef.current = es;
 
     es.onmessage = (event) => {

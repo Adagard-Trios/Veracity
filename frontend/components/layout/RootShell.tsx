@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/store';
 import { DashboardGrid } from '@/components/dashboard/DashboardGrid';
+import { AgentControlPanel } from '@/components/dashboard/AgentControlPanel';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { ChatFloatingButton } from '@/components/chat/ChatFloatingButton';
 import { AgentStatusBar } from '@/components/layout/AgentStatusBar';
@@ -21,6 +22,7 @@ export function RootShell() {
       >
         <AgentStatusBar />
         <div className="flex-1 overflow-auto p-4">
+          <AgentControlPanel />
           <DashboardGrid />
         </div>
       </motion.div>
