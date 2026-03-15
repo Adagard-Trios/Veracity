@@ -31,7 +31,10 @@ class VeracityState(TypedDict):
     """
 
     # --- Inputs ---
+    brand: str
     category: str
+    query: str
+    competitors: list[str]
     urls: list[str]
     pdf_paths: list[str]
     txt_paths: list[str]

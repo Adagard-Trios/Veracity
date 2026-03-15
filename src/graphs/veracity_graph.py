@@ -7,7 +7,7 @@ Architecture:
 The 6 parallel sub-graphs are:
     - adjacent_graph (adjacent market analysis)
     - competitor_graph (competitor analysis)
-    - market_trend_graph (market trend analysis)
+    - marketing_trend_graph (market trend analysis)
     - pricing_graph (pricing analysis)
     - user_voice_graph (user voice analysis)
     - win_loss_graph (win-loss analysis)
@@ -21,13 +21,11 @@ from src.nodes.veracity_node import information_fetcher, compiler_and_storage
 from src.utils.sse import emit_sse_artifact
 from src.graphs.adjacent_graph import adjacent_graph
 from src.graphs.competitor_graph import competitor_graph
-from src.graphs.market_trend_graph import market_trend_graph
+from src.graphs.marketing_trend_graph import marketing_trend_graph
 from src.graphs.pricing_graph import pricing_graph
 from src.graphs.user_voice_graph import user_voice_graph
 
-# Handle hyphenated module name for win-loss
-_win_loss_graph_mod = importlib.import_module("src.graphs.win-loss_graph")
-win_loss_graph = _win_loss_graph_mod.win_loss_graph
+from src.graphs.win_loss_graph import win_loss_graph
 
 
 # ---------------------------------------------------------------------------
@@ -41,6 +39,10 @@ def run_adjacent_analysis(state: VeracityState) -> dict:
         "messages": [],
         "category": state.get("category", ""),
         "fetched_content": state.get("fetched_content", []),
+        "extracted_context": "",
+        "tech_trends": "",
+        "adjacent_competitors": "",
+        "startup_threats": "",
         "analysis_result": "",
     })
     return {"adjacent_analysis": {"analysis_result": result.get("analysis_result", ""), "messages": str(result.get("messages", []))}}
@@ -80,13 +82,18 @@ def run_competitor_analysis(state: VeracityState) -> dict:
 
 def run_market_trend_analysis(state: VeracityState) -> dict:
     """Run the market trend analysis sub-graph."""
-    result = market_trend_graph.invoke({
+    result = marketing_trend_graph.invoke({
         "messages": [],
+        "brand": state.get("brand", ""),
         "category": state.get("category", ""),
-        "fetched_content": state.get("fetched_content", []),
-        "analysis_result": "",
+        "query": state.get("query", ""),
+        "sources": [],
+        "raw_data": [],
+        "analysis_tasks": [],
+        "analysis_results": [],
+        "analysis_report": "",
     })
-    return {"market_trend_analysis": {"analysis_result": result.get("analysis_result", ""), "messages": str(result.get("messages", []))}}
+    return {"market_trend_analysis": {"analysis_result": result.get("analysis_report", ""), "messages": str(result.get("messages", []))}}
 
 
 def run_pricing_analysis(state: VeracityState) -> dict:
@@ -95,6 +102,14 @@ def run_pricing_analysis(state: VeracityState) -> dict:
         "messages": [],
         "category": state.get("category", ""),
         "fetched_content": state.get("fetched_content", []),
+        "extracted_context": "",
+        "serp_results": "",
+        "meta_ad_results": "",
+        "scraped_pricing_pages": "",
+        "reddit_results": "",
+        "hn_results": "",
+        "linkedin_ad_results": "",
+        "content_analysis": "",
         "analysis_result": "",
     })
     return {"pricing_analysis": {"analysis_result": result.get("analysis_result", ""), "messages": str(result.get("messages", []))}}
@@ -106,6 +121,12 @@ def run_user_voice_analysis(state: VeracityState) -> dict:
         "messages": [],
         "category": state.get("category", ""),
         "fetched_content": state.get("fetched_content", []),
+        "extracted_context": "",
+        "reddit_feedback": "",
+        "hn_feedback": "",
+        "review_site_snippets": "",
+        "scraped_reviews": "",
+        "competitor_messaging": "",
         "analysis_result": "",
     })
     return {"user_voice_analysis": {"analysis_result": result.get("analysis_result", ""), "messages": str(result.get("messages", []))}}
@@ -115,11 +136,19 @@ def run_win_loss_analysis(state: VeracityState) -> dict:
     """Run the win-loss analysis sub-graph."""
     result = win_loss_graph.invoke({
         "messages": [],
+        "brand": state.get("brand", ""),
         "category": state.get("category", ""),
-        "fetched_content": state.get("fetched_content", []),
-        "analysis_result": "",
+        "competitors": state.get("competitors", []),
+        "query": state.get("query", ""),
+        "sources": [],
+        "raw_signals": [],
+        "extraction_tasks": [],
+        "extracted_signals": [],
+        "signal_matrix": "",
+        "win_loss_report": "",
     })
-    return {"win_loss_analysis": {"analysis_result": result.get("analysis_result", ""), "messages": str(result.get("messages", []))}}
+    # win_loss outputs win_loss_report (and signal_matrix), expose it directly as analysis_result
+    return {"win_loss_analysis": {"analysis_result": result.get("win_loss_report", "") + "\n\n" + result.get("signal_matrix", ""), "messages": str(result.get("messages", []))}}
 
 
 # ---------------------------------------------------------------------------
