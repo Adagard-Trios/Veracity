@@ -89,6 +89,7 @@ from src.utils.serpapi_utils import (
 from src.utils.linkedin_ads_utils import fetch_linkedin_ads
 from src.utils.reddit_hn_utils import fetch_hn_stories, fetch_reddit_posts
 from src.utils.patents_utils import get_company_patents, search_patents
+from src.utils.persistence_utils import persist_graph_run
 
 
 # ===========================================================================
@@ -568,4 +569,20 @@ def synthesize_node(state: MarketingTrendState) -> dict:
         "Keep the report tight and actionable. Marketing teams should be able to act on it."
     )
     response = llm.invoke(prompt)
-    return {"analysis_report": str(response.content)}
+    analysis_report = str(response.content)
+
+    final_state = {"analysis_report": analysis_report}
+
+    # Persist this graph run to ChromaDB
+    try:
+        persist_graph_run(
+            graph_name="marketing_trend_graph",
+            state={**dict(state), **final_state},
+            brand=brand,
+            category=category,
+            query=query,
+        )
+    except Exception:
+        pass  # Never let persistence failure break the graph
+
+    return final_state

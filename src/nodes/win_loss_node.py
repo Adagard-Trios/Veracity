@@ -77,6 +77,7 @@ from src.states.win_loss_state import (
     WinLossState,
     ExtractionTaskState,
 )
+from src.utils.persistence_utils import persist_graph_run
 
 # ---------------------------------------------------------------------------
 # Data-source utilities
@@ -627,7 +628,24 @@ def wl_synthesizer_node(state: WinLossState) -> dict:
     response = llm.invoke(prompt)
     report = str(response.content)
 
-    return {"signal_matrix": signal_matrix, "win_loss_report": report}
+    final_state = {
+        "signal_matrix": signal_matrix,
+        "win_loss_report": report,
+    }
+
+    # Persist this graph run to ChromaDB
+    try:
+        persist_graph_run(
+            graph_name="win_loss_graph",
+            state={**dict(state), **final_state},
+            brand=brand,
+            category=category,
+            query=query,
+        )
+    except Exception:
+        pass  # Never let persistence failure break the graph
+
+    return final_state
 
 
 def _build_signal_matrix(signal_blocks: list[dict], brand: str) -> str:

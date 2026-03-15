@@ -6,12 +6,16 @@ Contains:
 - compiler_and_storage: Aggregates all 6 sub-graph results, stores in ChromaDB.
 """
 
-import json
 from datetime import datetime
 from langchain_core.messages import HumanMessage
 from src.states.veracity_state import VeracityState
+<<<<<<< HEAD
 from src.utils.utils import scrape_urls, read_pdf_files, read_txt_files, store_to_chromadb
 from src.utils.sse import emit_sse_artifact
+=======
+from src.utils.utils import scrape_urls, read_pdf_files, read_txt_files
+from src.utils.persistence_utils import persist_graph_run
+>>>>>>> 8070255 (feat(chroma): Add chroma-db presistant client)
 
 
 def information_fetcher(state: VeracityState) -> dict:
@@ -30,7 +34,9 @@ def information_fetcher(state: VeracityState) -> dict:
 
     # --- Validation ---
     if not category or not category.strip():
-        raise ValueError("Category is required. Please provide a business/product category.")
+        raise ValueError(
+            "Category is required. Please provide a business/product category."
+        )
 
     has_urls = bool(urls)
     has_pdfs = bool(pdf_paths)
@@ -60,11 +66,13 @@ def information_fetcher(state: VeracityState) -> dict:
     return {
         "fetched_content": all_content,
         "messages": [
-            HumanMessage(content=(
-                f"Information fetched successfully for category '{category}'. "
-                f"Sources: {len(urls)} URLs, {len(pdf_paths)} PDFs, {len(txt_paths)} TXT files. "
-                f"Total content pieces: {len(all_content)}."
-            ))
+            HumanMessage(
+                content=(
+                    f"Information fetched successfully for category '{category}'. "
+                    f"Sources: {len(urls)} URLs, {len(pdf_paths)} PDFs, {len(txt_paths)} TXT files. "
+                    f"Total content pieces: {len(all_content)}."
+                )
+            )
         ],
     }
 
@@ -103,37 +111,38 @@ def compiler_and_storage(state: VeracityState) -> dict:
         },
     }
 
-    # --- Prepare documents for ChromaDB ---
-    documents = []
-    metadatas = []
-
-    for analysis_name, analysis_data in compiled_report["analyses"].items():
-        if analysis_data:
-            doc_content = json.dumps(analysis_data) if isinstance(analysis_data, dict) else str(analysis_data)
-            documents.append(doc_content)
-            metadatas.append({
-                "category": category,
-                "analysis_type": analysis_name,
-                "timestamp": compiled_report["timestamp"],
-            })
-
-    # --- Store in ChromaDB ---
-    storage_status = "No documents to store."
-    if documents:
-        collection_name = f"veracity_{category.lower().replace(' ', '_')}"
-        storage_status = store_to_chromadb(
-            collection_name=collection_name,
-            documents=documents,
-            metadatas=metadatas,
-        )
+    # --- Store in ChromaDB via persist_graph_run ---
+    storage_status = "No analyses to store."
+    if any(compiled_report["analyses"].values()):
+        try:
+            persist_graph_run(
+                graph_name="veracity_graph",
+                state=dict(state),
+                category=category,
+                extra_metadata={
+                    "compiled_timestamp": compiled_report["timestamp"],
+                    "analyses_count": len(
+                        [v for v in compiled_report["analyses"].values() if v]
+                    ),
+                },
+            )
+            stored_count = len([v for v in compiled_report["analyses"].values() if v])
+            storage_status = (
+                f"Successfully stored {stored_count} analyses in ChromaDB "
+                f"(collection: graph_runs, graph: veracity_graph)."
+            )
+        except Exception as exc:
+            storage_status = f"ChromaDB storage failed (non-fatal): {exc}"
 
     return {
         "compiled_report": compiled_report,
         "storage_status": storage_status,
         "messages": [
-            HumanMessage(content=(
-                f"Compilation complete. {len(documents)} analyses stored in ChromaDB. "
-                f"Status: {storage_status}"
-            ))
+            HumanMessage(
+                content=(
+                    f"Compilation complete for category '{category}'. "
+                    f"Status: {storage_status}"
+                )
+            )
         ],
     }
