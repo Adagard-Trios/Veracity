@@ -14,9 +14,11 @@ The 6 parallel sub-graphs are:
 """
 
 import importlib
+import json
 from langgraph.graph import StateGraph, END
 from src.states.veracity_state import VeracityState
 from src.nodes.veracity_node import information_fetcher, compiler_and_storage
+from src.utils.sse import emit_sse_artifact
 from src.graphs.adjacent_graph import adjacent_graph
 from src.graphs.competitor_graph import competitor_graph
 from src.graphs.market_trend_graph import market_trend_graph
@@ -45,14 +47,35 @@ def run_adjacent_analysis(state: VeracityState) -> dict:
 
 
 def run_competitor_analysis(state: VeracityState) -> dict:
-    """Run the competitor analysis sub-graph."""
+    """Run the competitor analysis sub-graph (parallel Firecrawl pipeline)."""
     result = competitor_graph.invoke({
         "messages": [],
         "category": state.get("category", ""),
         "fetched_content": state.get("fetched_content", []),
+        "competitor_tasks": [],        # populated by planner_node
+        "competitor_results": [],      # parallel-merge reducer requires initial list
         "analysis_result": "",
+        "structured_output": {},
     })
-    return {"competitor_analysis": {"analysis_result": result.get("analysis_result", ""), "messages": str(result.get("messages", []))}}
+
+    structured = result.get("structured_output", {})
+    confidence = structured.get("overall_confidence", 0.5) if structured else 0.5
+
+    # Emit SSE events to the frontend (no-op when sse_queue not in state)
+    emit_sse_artifact(
+        domain="competitive_landscape",
+        payload=structured,
+        confidence=confidence,
+        sse_queue=state.get("sse_queue"),
+    )
+
+    return {
+        "competitor_analysis": {
+            "analysis_result": result.get("analysis_result", ""),
+            "structured_output": structured,
+            "messages": str(result.get("messages", [])),
+        }
+    }
 
 
 def run_market_trend_analysis(state: VeracityState) -> dict:

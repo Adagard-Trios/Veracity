@@ -4,7 +4,7 @@ Veracity State — Main orchestrator state for the Growth Intelligence System.
 Stores all inputs, fetched content, parallel sub-graph results, and final compiled report.
 """
 
-from typing import TypedDict, Annotated
+from typing import TypedDict, Annotated, Any
 from langgraph.graph.message import add_messages
 
 
@@ -24,6 +24,8 @@ class VeracityState(TypedDict):
         pricing_analysis: Results from the pricing analysis sub-graph.
         user_voice_analysis: Results from the user voice analysis sub-graph.
         win_loss_analysis: Results from the win-loss analysis sub-graph.
+        sse_queue: Optional queue for SSE event emission (thread-safe queue.Queue
+                   or equivalent). Set to None if SSE is not used.
         compiled_report: Final aggregated report from all sub-graphs.
         storage_status: Status message from ChromaDB storage operation.
     """
@@ -51,3 +53,4 @@ class VeracityState(TypedDict):
     # --- Final Output ---
     compiled_report: dict
     storage_status: str
+    sse_queue: Any           # optional — pass a queue.Queue to enable SSE emission
